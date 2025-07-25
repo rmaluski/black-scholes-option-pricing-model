@@ -229,11 +229,43 @@ with tabs[0]:
             ax2.text(j, i, f"{put_price_grid[i, j]:.2f}", ha="center", va="center", color="white", fontsize=10)
     fig2.tight_layout()
 
-    # Responsive layout: Always stack for better visibility
-    # This ensures heatmaps are always large enough to read properly
+    # Responsive layout: Use CSS to detect screen size and adjust layout
+    st.markdown("""
+    <style>
+    @media (min-width: 1200px) {
+        .heatmap-container {
+            display: flex;
+            gap: 20px;
+        }
+        .heatmap-item {
+            flex: 1;
+        }
+    }
+    @media (max-width: 1199px) {
+        .heatmap-container {
+            display: block;
+        }
+        .heatmap-item {
+            margin-bottom: 20px;
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
     
+    # Create responsive container
+    st.markdown('<div class="heatmap-container">', unsafe_allow_html=True)
+    
+    # First heatmap
+    st.markdown('<div class="heatmap-item">', unsafe_allow_html=True)
     st.pyplot(fig1, use_container_width=True, clear_figure=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Second heatmap
+    st.markdown('<div class="heatmap-item">', unsafe_allow_html=True)
     st.pyplot(fig2, use_container_width=True, clear_figure=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # Store input and output in DB (only if we have valid prices)
     if st.session_state.get('last_call_price') is not None:
