@@ -10,35 +10,71 @@ from implied_vol import plot_iv_smile
 from model_comparison import benchmark_models
 import pandas as pd
 
+# --- UX polish: set page config ---
+st.set_page_config(
+    page_title="Black-Scholes Option Pricing Model",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://github.com/rmaluski/black-scholes-option-pricing-model',
+        'About': "A comprehensive Python project for option pricing, analytics, and visualization."
+    }
+)
+
+# --- Theme toggle ---
+theme = st.sidebar.radio("Theme", ["Light", "Dark"], index=0)
+if theme == "Dark":
+    st.markdown(
+        """
+        <style>
+        body, .stApp { background-color: #222 !important; color: #eee !important; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
 init_db()
 
 st.title("Black-Scholes Option Pricing Model")
 
-tabs = st.tabs(["Pricer", "Greeks Dashboard", "Implied Volatility Smile", "Model Comparison"])
-
 API_URL = "http://localhost:8000"
+
+tabs = st.tabs(["Pricer", "Greeks Dashboard", "Implied Volatility Smile", "Model Comparison"])
 
 with tabs[0]:
     st.sidebar.header("Input Parameters")
-    S = st.sidebar.number_input("Spot price (S)", min_value=0.0, value=100.0)
+    # --- Animated sliders ---
+    spot_min, spot_max = 80.0, 120.0
+    vol_min, vol_max = 0.1, 0.5
+    time_min, time_max = 0.01, 2.0
+    spot = st.sidebar.slider("Spot price (S)", min_value=spot_min, max_value=spot_max, value=100.0, step=0.5)
+    vol = st.sidebar.slider("Volatility (sigma, decimal)", min_value=vol_min, max_value=vol_max, value=0.2, step=0.01)
+    time = st.sidebar.slider("Time to maturity (T, years)", min_value=time_min, max_value=time_max, value=1.0, step=0.01)
+    play = st.sidebar.checkbox("Animate spot/vol/time")
+    if play:
+        import time as pytime
+        for s in np.linspace(spot_min, spot_max, 20):
+            for v in np.linspace(vol_min, vol_max, 10):
+                for t in np.linspace(time_min, time_max, 5):
+                    st.sidebar.write(f"S={s:.2f}, sigma={v:.2f}, T={t:.2f}")
+                    payload = {"S": s, "K": 100, "T": t, "r": 0.05, "sigma": v, "option_type": "call", "q": 0.0}
+                    resp = requests.post(f"{API_URL}/price", json=payload)
+                    price = resp.json()["price"]
+                    st.metric(label="Call Price", value=f"{price:.2f}")
+                    pytime.sleep(0.1)
     K = st.sidebar.number_input("Strike price (K)", min_value=0.0, value=100.0)
-    T = st.sidebar.number_input("Time to maturity (T, years)", min_value=0.0, value=1.0)
     r = st.sidebar.number_input("Risk-free rate (r, decimal)", value=0.05)
-    sigma = st.sidebar.number_input("Volatility (sigma, decimal)", min_value=0.0, value=0.2)
     option_type = st.sidebar.selectbox("Option type", ["call", "put"])
     purchase_price = st.sidebar.number_input("Purchase price", min_value=0.0, value=10.0)
 
     st.sidebar.header("Heatmap Ranges")
-    spot_min = st.sidebar.number_input("Spot min", min_value=1.0, value=80.0)
-    spot_max = st.sidebar.number_input("Spot max", min_value=1.0, value=120.0)
     spot_steps = st.sidebar.slider("Spot steps", min_value=5, max_value=50, value=20)
-    vol_min = st.sidebar.number_input("Volatility min", min_value=0.01, value=0.1)
-    vol_max = st.sidebar.number_input("Volatility max", min_value=0.01, value=0.5)
     vol_steps = st.sidebar.slider("Volatility steps", min_value=5, max_value=50, value=20)
 
-    if st.sidebar.button("Calculate"):
+    if st.sidebar.button("Calculate") and not play:
         payload = {
-            "S": S, "K": K, "T": T, "r": r, "sigma": sigma, "option_type": option_type, "q": 0.0
+            "S": spot, "K": K, "T": time, "r": r, "sigma": vol, "option_type": option_type, "q": 0.0
         }
         resp = requests.post(f"{API_URL}/price", json=payload)
         price = resp.json()["price"]
