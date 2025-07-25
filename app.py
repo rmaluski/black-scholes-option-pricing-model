@@ -1,5 +1,5 @@
 import streamlit as st
-from black_scholes import black_scholes_price
+import requests
 import numpy as np
 import matplotlib.pyplot as plt
 from models import OptionInput, OptionOutput, SessionLocal, init_db
@@ -15,6 +15,8 @@ init_db()
 st.title("Black-Scholes Option Pricing Model")
 
 tabs = st.tabs(["Pricer", "Greeks Dashboard", "Implied Volatility Smile", "Model Comparison"])
+
+API_URL = "http://localhost:8000"
 
 with tabs[0]:
     st.sidebar.header("Input Parameters")
@@ -35,7 +37,11 @@ with tabs[0]:
     vol_steps = st.sidebar.slider("Volatility steps", min_value=5, max_value=50, value=20)
 
     if st.sidebar.button("Calculate"):
-        price = black_scholes_price(S, K, T, r, sigma, option_type)
+        payload = {
+            "S": S, "K": K, "T": T, "r": r, "sigma": sigma, "option_type": option_type, "q": 0.0
+        }
+        resp = requests.post(f"{API_URL}/price", json=payload)
+        price = resp.json()["price"]
         st.subheader(f"{option_type.capitalize()} Option Price")
         st.table({"Price": [f"{price:.4f}"]})
 
@@ -95,12 +101,26 @@ with tabs[1]:
     sigma_range = np.linspace(vol_min, vol_max, vol_steps)
     # Line plots for a fixed sigma
     st.subheader("Line Plots (varying Spot, fixed Volatility)")
+    delta_vals = []
+    gamma_vals = []
+    theta_vals = []
+    vega_vals = []
+    rho_vals = []
+    for s in S_range:
+        payload = {"S": s, "K": K, "T": T, "r": r, "sigma": sigma, "option_type": option_type, "q": 0.0}
+        resp = requests.post(f"{API_URL}/greeks", json=payload)
+        greeks = resp.json()
+        delta_vals.append(greeks["delta"])
+        gamma_vals.append(greeks["gamma"])
+        theta_vals.append(greeks["theta"])
+        vega_vals.append(greeks["vega"])
+        rho_vals.append(greeks["rho"])
     fig, ax = plt.subplots()
-    ax.plot(S_range, [delta(s, K, T, r, sigma, option_type) for s in S_range], label="Delta")
-    ax.plot(S_range, [gamma(s, K, T, r, sigma) for s in S_range], label="Gamma")
-    ax.plot(S_range, [theta(s, K, T, r, sigma, option_type) for s in S_range], label="Theta")
-    ax.plot(S_range, [vega(s, K, T, r, sigma) for s in S_range], label="Vega")
-    ax.plot(S_range, [rho(s, K, T, r, sigma, option_type) for s in S_range], label="Rho")
+    ax.plot(S_range, delta_vals, label="Delta")
+    ax.plot(S_range, gamma_vals, label="Gamma")
+    ax.plot(S_range, theta_vals, label="Theta")
+    ax.plot(S_range, vega_vals, label="Vega")
+    ax.plot(S_range, rho_vals, label="Rho")
     ax.set_xlabel("Spot Price (S)")
     ax.set_ylabel("Greek Value")
     ax.set_title("Greeks vs Spot Price (fixed Volatility)")
