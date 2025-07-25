@@ -196,8 +196,8 @@ with tabs[0]:
     # Responsive heatmap layout based on screen size
     st.subheader("Option Price Heatmaps")
     
-    # Create heatmaps
-    fig1, ax1 = plt.subplots(figsize=(6, 4))
+    # Create heatmaps with larger size for better visibility
+    fig1, ax1 = plt.subplots(figsize=(8, 6))
     c1 = ax1.imshow(call_price_grid, aspect='auto', origin='lower', cmap='viridis')
     ax1.set_xlabel('Spot Price (S)')
     ax1.set_ylabel('Volatility (sigma)')
@@ -211,10 +211,10 @@ with tabs[0]:
     # Center numbers in each box
     for i in range(call_price_grid.shape[0]):
         for j in range(call_price_grid.shape[1]):
-            ax1.text(j, i, f"{call_price_grid[i, j]:.2f}", ha="center", va="center", color="white", fontsize=8)
+            ax1.text(j, i, f"{call_price_grid[i, j]:.2f}", ha="center", va="center", color="white", fontsize=10)
     fig1.tight_layout()
 
-    fig2, ax2 = plt.subplots(figsize=(6, 4))
+    fig2, ax2 = plt.subplots(figsize=(8, 6))
     c2 = ax2.imshow(put_price_grid, aspect='auto', origin='lower', cmap='viridis')
     ax2.set_xlabel('Spot Price (S)')
     ax2.set_ylabel('Volatility (sigma)')
@@ -226,33 +226,34 @@ with tabs[0]:
     ax2.set_yticklabels([f"{v:.2f}" for v in vol_range])
     for i in range(put_price_grid.shape[0]):
         for j in range(put_price_grid.shape[1]):
-            ax2.text(j, i, f"{put_price_grid[i, j]:.2f}", ha="center", va="center", color="white", fontsize=8)
+            ax2.text(j, i, f"{put_price_grid[i, j]:.2f}", ha="center", va="center", color="white", fontsize=10)
     fig2.tight_layout()
 
     # Responsive layout: side-by-side on large screens, stacked on small screens
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        st.pyplot(fig1)
+        st.pyplot(fig1, use_container_width=True)
     
     with col2:
-        st.pyplot(fig2)
+        st.pyplot(fig2, use_container_width=True)
 
-    # Store input and output in DB (store call price as before)
-    session = SessionLocal()
-    input_row = OptionInput(
-        S=spot, K=K, T=T, r=r, sigma=vol, option_type="call"
-    )
-    session.add(input_row)
-    session.commit()
-    output_row = OptionOutput(
-        input_id=input_row.id,
-        price=st.session_state['last_call_price'],  # Use session state value
-        pnl_grid="[]"  # No P&L grid
-    )
-    session.add(output_row)
-    session.commit()
-    session.close()
+    # Store input and output in DB (only if we have valid prices)
+    if st.session_state.get('last_call_price') is not None:
+        session = SessionLocal()
+        input_row = OptionInput(
+            S=spot, K=K, T=T, r=r, sigma=vol, option_type="call"
+        )
+        session.add(input_row)
+        session.commit()
+        output_row = OptionOutput(
+            input_id=input_row.id,
+            price=st.session_state['last_call_price'],  # Use session state value
+            pnl_grid="[]"  # No P&L grid
+        )
+        session.add(output_row)
+        session.commit()
+        session.close()
 
 
 with tabs[1]:
