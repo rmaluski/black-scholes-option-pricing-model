@@ -7,12 +7,14 @@ import json
 from greeks import delta, gamma, theta, vega, rho
 from mpl_toolkits.mplot3d import Axes3D
 from implied_vol import plot_iv_smile
+from model_comparison import benchmark_models
+import pandas as pd
 
 init_db()
 
 st.title("Black-Scholes Option Pricing Model")
 
-tabs = st.tabs(["Pricer", "Greeks Dashboard", "Implied Volatility Smile"])
+tabs = st.tabs(["Pricer", "Greeks Dashboard", "Implied Volatility Smile", "Model Comparison"])
 
 with tabs[0]:
     st.sidebar.header("Input Parameters")
@@ -134,4 +136,19 @@ with tabs[2]:
                 strikes, ivs = plot_iv_smile(ticker, expiry, r=r_iv, option_type=option_type_iv)
                 st.line_chart({"Strike": strikes, "Implied Vol": ivs})
             except Exception as e:
-                st.error(f"Error: {e}") 
+                st.error(f"Error: {e}")
+
+with tabs[3]:
+    st.header("Model Comparison: Black-Scholes, Binomial Tree, Monte Carlo")
+    st.write("Benchmark accuracy and runtime for all three engines.")
+    S_cmp = st.number_input("Spot price (S)", min_value=0.0, value=100.0, key="cmp_S")
+    K_cmp = st.number_input("Strike price (K)", min_value=0.0, value=100.0, key="cmp_K")
+    T_cmp = st.number_input("Time to maturity (T, years)", min_value=0.0, value=1.0, key="cmp_T")
+    r_cmp = st.number_input("Risk-free rate (r, decimal)", value=0.05, key="cmp_r")
+    sigma_cmp = st.number_input("Volatility (sigma, decimal)", min_value=0.0, value=0.2, key="cmp_sigma")
+    option_type_cmp = st.selectbox("Option type", ["call", "put"], key="cmp_type")
+    if st.button("Run Model Comparison"):
+        results = benchmark_models(S_cmp, K_cmp, T_cmp, r_cmp, sigma_cmp, option_type_cmp)
+        df = pd.DataFrame(results).T
+        df["abs_error_vs_BS"] = abs(df["price"] - df.loc["Black-Scholes", "price"])
+        st.dataframe(df.style.highlight_min(subset=["abs_error_vs_BS", "time"], color="lightgreen")) 
