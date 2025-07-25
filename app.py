@@ -6,12 +6,13 @@ from models import OptionInput, OptionOutput, SessionLocal, init_db
 import json
 from greeks import delta, gamma, theta, vega, rho
 from mpl_toolkits.mplot3d import Axes3D
+from implied_vol import plot_iv_smile
 
 init_db()
 
 st.title("Black-Scholes Option Pricing Model")
 
-tabs = st.tabs(["Pricer", "Greeks Dashboard"])
+tabs = st.tabs(["Pricer", "Greeks Dashboard", "Implied Volatility Smile"])
 
 with tabs[0]:
     st.sidebar.header("Input Parameters")
@@ -118,4 +119,19 @@ with tabs[1]:
     ax3d.set_ylabel('Volatility (sigma)')
     ax3d.set_zlabel('Delta')
     ax3d.set_title('Delta Surface')
-    st.pyplot(fig3d) 
+    st.pyplot(fig3d)
+
+with tabs[2]:
+    st.header("Implied Volatility Smile")
+    st.write("Fetch option chain from Yahoo Finance and plot IV smile.")
+    ticker = st.text_input("Ticker", value="AAPL")
+    expiry = st.text_input("Expiry (YYYY-MM-DD)", value="2024-12-20")
+    option_type_iv = st.selectbox("Option type", ["call", "put"], key="iv_type")
+    r_iv = st.number_input("Risk-free rate (r, decimal)", value=0.01, key="iv_r")
+    if st.button("Plot IV Smile"):
+        with st.spinner("Fetching data and calculating implied vols..."):
+            try:
+                strikes, ivs = plot_iv_smile(ticker, expiry, r=r_iv, option_type=option_type_iv)
+                st.line_chart({"Strike": strikes, "Implied Vol": ivs})
+            except Exception as e:
+                st.error(f"Error: {e}") 
