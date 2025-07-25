@@ -9,6 +9,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from implied_vol import plot_iv_smile
 from model_comparison import benchmark_models
 import pandas as pd
+from black_scholes import black_scholes_price
 
 # --- UX polish: set page config ---
 st.set_page_config(
@@ -88,14 +89,14 @@ with tabs[0]:
         pnl_grid = np.zeros_like(price_grid)
         for i, s in enumerate(spot_range):
             for j, v in enumerate(vol_range):
-                p = black_scholes_price(s, K, T, r, v, option_type)
+                p = black_scholes_price(s, K, time, r, v, option_type)
                 price_grid[i, j] = p
                 pnl_grid[i, j] = p - purchase_price
 
         # Store input and output in DB
         session = SessionLocal()
         input_row = OptionInput(
-            S=S, K=K, T=T, r=r, sigma=sigma, option_type=option_type, purchase_price=purchase_price
+            S=spot, K=K, T=time, r=r, sigma=vol, option_type=option_type, purchase_price=purchase_price
         )
         session.add(input_row)
         session.commit()
@@ -143,7 +144,7 @@ with tabs[1]:
     vega_vals = []
     rho_vals = []
     for s in S_range:
-        payload = {"S": s, "K": K, "T": T, "r": r, "sigma": sigma, "option_type": option_type, "q": 0.0}
+        payload = {"S": s, "K": K, "T": time, "r": r, "sigma": vol, "option_type": option_type, "q": 0.0}
         resp = requests.post(f"{API_URL}/greeks", json=payload)
         greeks = resp.json()
         delta_vals.append(greeks["delta"])
@@ -169,7 +170,7 @@ with tabs[1]:
     delta_grid = np.zeros_like(S_grid)
     for i in range(S_grid.shape[0]):
         for j in range(S_grid.shape[1]):
-            delta_grid[i, j] = delta(S_grid[i, j], K, T, r, sigma_grid[i, j], option_type)
+            delta_grid[i, j] = delta(S_grid[i, j], K, time, r, sigma_grid[i, j], option_type)
     fig3d = plt.figure()
     ax3d = fig3d.add_subplot(111, projection='3d')
     ax3d.plot_surface(S_grid, sigma_grid, delta_grid, cmap='viridis')
