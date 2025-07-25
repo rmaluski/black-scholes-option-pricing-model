@@ -229,14 +229,11 @@ with tabs[0]:
             ax2.text(j, i, f"{put_price_grid[i, j]:.2f}", ha="center", va="center", color="white", fontsize=10)
     fig2.tight_layout()
 
-    # Responsive layout: side-by-side on large screens, stacked on small screens
-    col1, col2 = st.columns([1, 1])
+    # Responsive layout: Always stack for better visibility
+    # This ensures heatmaps are always large enough to read properly
     
-    with col1:
-        st.pyplot(fig1, use_container_width=True)
-    
-    with col2:
-        st.pyplot(fig2, use_container_width=True)
+    st.pyplot(fig1, use_container_width=True, clear_figure=True)
+    st.pyplot(fig2, use_container_width=True, clear_figure=True)
 
     # Store input and output in DB (only if we have valid prices)
     if st.session_state.get('last_call_price') is not None:
