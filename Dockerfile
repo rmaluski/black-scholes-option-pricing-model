@@ -8,5 +8,5 @@ COPY . .
 
 EXPOSE 8501 8000
 
-CMD ["streamlit", "run", "app.py"]
+CMD ["streamlit", "run", "app.py", "--server.port", "8080", "--server.address", "0.0.0.0"]
 # To run FastAPI: docker run ... uvicorn api:app --host 0.0.0.0 --port 8000 
