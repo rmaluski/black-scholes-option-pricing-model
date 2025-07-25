@@ -193,8 +193,11 @@ with tabs[0]:
             # call_pnl_grid[i, j] = call_p - purchase_price
             # put_pnl_grid[i, j] = put_p - purchase_price
 
-    # Call price heatmap with value annotations (index-based centering)
-    fig1, ax1 = plt.subplots()
+    # Responsive heatmap layout based on screen size
+    st.subheader("Option Price Heatmaps")
+    
+    # Create heatmaps
+    fig1, ax1 = plt.subplots(figsize=(6, 4))
     c1 = ax1.imshow(call_price_grid, aspect='auto', origin='lower', cmap='viridis')
     ax1.set_xlabel('Spot Price (S)')
     ax1.set_ylabel('Volatility (sigma)')
@@ -210,10 +213,8 @@ with tabs[0]:
         for j in range(call_price_grid.shape[1]):
             ax1.text(j, i, f"{call_price_grid[i, j]:.2f}", ha="center", va="center", color="white", fontsize=8)
     fig1.tight_layout()
-    st.pyplot(fig1)
 
-    # Put price heatmap with value annotations (index-based centering)
-    fig2, ax2 = plt.subplots()
+    fig2, ax2 = plt.subplots(figsize=(6, 4))
     c2 = ax2.imshow(put_price_grid, aspect='auto', origin='lower', cmap='viridis')
     ax2.set_xlabel('Spot Price (S)')
     ax2.set_ylabel('Volatility (sigma)')
@@ -227,7 +228,15 @@ with tabs[0]:
         for j in range(put_price_grid.shape[1]):
             ax2.text(j, i, f"{put_price_grid[i, j]:.2f}", ha="center", va="center", color="white", fontsize=8)
     fig2.tight_layout()
-    st.pyplot(fig2)
+
+    # Responsive layout: side-by-side on large screens, stacked on small screens
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.pyplot(fig1)
+    
+    with col2:
+        st.pyplot(fig2)
 
     # Store input and output in DB (store call price as before)
     session = SessionLocal()
