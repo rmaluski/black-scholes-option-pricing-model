@@ -1,3 +1,4 @@
+import os
 from sqlalchemy import Column, Integer, Float, String, DateTime, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -26,7 +27,7 @@ class OptionOutput(Base):
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
 # Example engine setup (update URL as needed)
-DATABASE_URL = 'postgresql://user:password@localhost:5432/black_scholes'
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///local.db")
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 

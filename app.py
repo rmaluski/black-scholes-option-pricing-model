@@ -11,6 +11,7 @@ from model_comparison import benchmark_models
 import pandas as pd
 from black_scholes import black_scholes_price
 import datetime
+import yfinance as yf
 
 # --- UX polish: set page config ---
 st.set_page_config(
@@ -32,7 +33,6 @@ init_db()
 st.title("Black-Scholes Option Pricing Model")
 
 # --- Animated sliders ---
-spot_min, spot_max = 80.0, 120.0
 vol_min, vol_max = 0.1, 0.5
 time_min, time_max = 0.01, 2.0
 
@@ -41,27 +41,79 @@ tabs = st.tabs(["Pricer", "Greeks Dashboard", "Implied Volatility Smile", "Model
 with tabs[0]:
     st.sidebar.header("Input Parameters")
     # Replace sliders with number_input text boxes for direct value entry
-    spot = st.sidebar.number_input("Spot price (S)", min_value=spot_min, max_value=spot_max, value=100.0, step=0.5)
-    vol = st.sidebar.number_input("Volatility (sigma, decimal)", min_value=vol_min, max_value=vol_max, value=0.2, step=0.01)
-    # Replace T input with expiration date picker
-    import datetime
+    import yfinance as yf
+    # Fetch the latest 10-year Treasury yield
+    def get_10yr_treasury_yield():
+        tnx = yf.Ticker("^TNX")
+        data = tnx.history(period="1d")
+        if not data.empty:
+            return data["Close"].iloc[-1] / 100  # Convert percent to decimal
+        else:
+            return 0.04  # fallback default
+    default_rf = get_10yr_treasury_yield()
+
+    # Fetch the latest VIX value
+    def get_vix():
+        vix = yf.Ticker("^VIX")
+        data = vix.history(period="1d")
+        if not data.empty:
+            return data["Close"].iloc[-1] / 100  # Convert percent to decimal
+        else:
+            return 0.20  # fallback default
+    default_vix = get_vix()
+
+    # Add ticker input to sidebar
+    ticker_str = st.sidebar.text_input("Ticker Symbol", value="AAPL", help="Enter the stock ticker symbol (e.g., AAPL, MSFT, SPY)")
+
+    # Fetch current stock price from yfinance
+    def get_current_price(ticker):
+        try:
+            ticker_obj = yf.Ticker(ticker)
+            data = ticker_obj.history(period="1d")
+            if not data.empty:
+                return data["Close"].iloc[-1]
+            else:
+                return 100.0  # fallback default
+        except Exception:
+            return 100.0  # fallback default
+
+    # Get current price for the ticker
+    current_price = get_current_price(ticker_str)
+    st.sidebar.markdown(f"**Current {ticker_str} Price:** ${current_price:.2f}")
+
+    spot = st.sidebar.number_input("Spot price (S)", min_value=0.01, value=current_price, step=0.01, format="%.2f")
+    
+    # Display VIX value above volatility input
+    st.sidebar.markdown(f"**VIX (30d Implied Vol):** {default_vix:.4%}")
+    vol = st.sidebar.number_input("Volatility (sigma, decimal)", min_value=vol_min, max_value=vol_max, value=default_vix, step=0.000001, format="%.6f")
+    
+    # Display 10Y Treasury yield above risk-free rate input
+    st.sidebar.markdown(f"**10Y Treasury Yield:** {default_rf:.4%}")
+    r = st.sidebar.number_input("Risk-free rate (r, decimal)", value=default_rf, format="%.6f")
+    st.sidebar.caption("If VIX=14.93, enter 0.1493 for volatility. VIX is a 30-day forward-looking implied volatility for the S&P 500.")
+    # Set default expiry to the 3rd Friday of next month
     today = datetime.date.today()
-    default_expiry = today + datetime.timedelta(days=30)
-    expiry_date = st.sidebar.date_input("Expiration date", value=default_expiry, min_value=today)
+    if today.month == 12:
+        year = today.year + 1
+        month = 1
+    else:
+        year = today.year
+        month = today.month + 1
+    first_of_month = datetime.date(year, month, 1)
+    fridays = []
+    for i in range(31):
+        day = first_of_month + datetime.timedelta(days=i)
+        if day.month != month:
+            break
+        if day.weekday() == 4:
+            fridays.append(day)
+    if len(fridays) >= 3:
+        third_friday = fridays[2]
+    else:
+        third_friday = fridays[-1]
+    expiry_date = st.sidebar.date_input("Expiration date", value=third_friday, min_value=today)
     T = (expiry_date - today).days / 365.0
-    play = st.sidebar.checkbox("Animate spot/vol/time")
-    if play:
-        import time as pytime
-        for s in np.linspace(spot_min, spot_max, 20):
-            for v in np.linspace(vol_min, vol_max, 10):
-                for t in np.linspace(time_min, time_max, 5):
-                    st.sidebar.write(f"S={s:.2f}, sigma={v:.2f}, T={t:.2f}")
-                    payload = {"S": s, "K": 100, "T": t, "r": 0.05, "sigma": v, "option_type": "call", "q": 0.0}
-                    price = black_scholes_price(**payload)
-                    st.metric(label="Call Price", value=f"{price:.2f}")
-                    pytime.sleep(0.1)
     K = st.sidebar.number_input("Strike price (K)", min_value=0.0, value=100.0)
-    r = st.sidebar.number_input("Risk-free rate (r, decimal)", value=0.05)
     # Remove option type input from sidebar
     # purchase_price = st.sidebar.number_input("Purchase price", min_value=0.0, value=10.0)
 
@@ -75,12 +127,13 @@ with tabs[0]:
     if 'last_put_price' not in st.session_state:
         st.session_state['last_put_price'] = None
 
-    # Update Latest Option Prices section to show two colored boxes
+    # On Calculate, fetch market call/put prices from yfinance for comparison
     show_call_price = st.session_state.get('last_call_price')
     show_put_price = st.session_state.get('last_put_price')
+    show_market_call = None
+    show_market_put = None
 
-    if st.sidebar.button("Calculate") and not play:
-        # Use T in all pricing calculations (replace 'time' with 'T')
+    if st.sidebar.button("Calculate"):
         payload = {
             "S": spot, "K": K, "T": T, "r": r, "sigma": vol, "q": 0.0
         }
@@ -91,19 +144,41 @@ with tabs[0]:
         show_call_price = call_price
         show_put_price = put_price
 
+        # Fetch market prices from yfinance
+        try:
+            yf_ticker = yf.Ticker(ticker_str)
+            opt_chain = yf_ticker.option_chain(expiry_date.strftime("%Y-%m-%d"))
+            calls = opt_chain.calls
+            puts = opt_chain.puts
+            # Find closest strike
+            call_row = calls.loc[(calls['strike'] - K).abs().idxmin()] if not calls.empty else None
+            put_row = puts.loc[(puts['strike'] - K).abs().idxmin()] if not puts.empty else None
+            show_market_call = call_row['lastPrice'] if call_row is not None else None
+            show_market_put = put_row['lastPrice'] if put_row is not None else None
+        except Exception:
+            show_market_call = None
+            show_market_put = None
+
     call_display = f"{show_call_price:.4f}" if show_call_price is not None else "--"
     put_display = f"{show_put_price:.4f}" if show_put_price is not None else "--"
+    call_market_display = f"{show_market_call:.4f}" if show_market_call is not None else "--"
+    put_market_display = f"{show_market_put:.4f}" if show_market_put is not None else "--"
 
     st.subheader("Latest Option Prices")
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown(f"<div style='background-color:#2ecc40;padding:20px;border-radius:10px;text-align:center;'><span style='color:white;font-size:24px;font-weight:bold;'>Call Value</span><br><span style='color:white;font-size:32px;font-weight:bold;'>{call_display}</span></div>", unsafe_allow_html=True)
+        # Call Price (market) above Call Value (Black-Scholes)
+        st.markdown(f"<div style='background-color:#2980b9;padding:15px;border-radius:10px;text-align:center;margin-bottom:10px;'><span style='color:white;font-size:16px;font-weight:bold;'>Call Price (Market)</span><br><span style='color:white;font-size:20px;font-weight:bold;'>{call_market_display}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background-color:#2ecc40;padding:15px;border-radius:10px;text-align:center;'><span style='color:white;font-size:16px;font-weight:bold;'>Call Value (Black-Scholes)</span><br><span style='color:white;font-size:20px;font-weight:bold;'>{call_display}</span></div>", unsafe_allow_html=True)
     with col2:
-        st.markdown(f"<div style='background-color:#e74c3c;padding:20px;border-radius:10px;text-align:center;'><span style='color:white;font-size:24px;font-weight:bold;'>Put Value</span><br><span style='color:white;font-size:32px;font-weight:bold;'>{put_display}</span></div>", unsafe_allow_html=True)
+        # Put Price (market) above Put Value (Black-Scholes)
+        st.markdown(f"<div style='background-color:#c0392b;padding:15px;border-radius:10px;text-align:center;margin-bottom:10px;'><span style='color:white;font-size:16px;font-weight:bold;'>Put Price (Market)</span><br><span style='color:white;font-size:20px;font-weight:bold;'>{put_market_display}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='background-color:#e74c3c;padding:15px;border-radius:10px;text-align:center;'><span style='color:white;font-size:16px;font-weight:bold;'>Put Value (Black-Scholes)</span><br><span style='color:white;font-size:20px;font-weight:bold;'>{put_display}</span></div>", unsafe_allow_html=True)
 
     # Set heatmap grid steps to a fixed value
     grid_steps = 12
-    spot_range = np.linspace(spot_min, spot_max, grid_steps)
+    # Use dynamic range based on current spot price for heatmap
+    spot_range = np.linspace(spot * 0.8, spot * 1.2, grid_steps)
     vol_range = np.linspace(vol_min, vol_max, grid_steps)
     call_price_grid = np.zeros((len(vol_range), len(spot_range)))
     put_price_grid = np.zeros_like(call_price_grid)
@@ -174,7 +249,8 @@ with tabs[0]:
 with tabs[1]:
     st.header("Greeks Dashboard")
     st.write("Line plots and 3D surface for Greeks.")
-    S_range = np.linspace(spot_min, spot_max, grid_steps)
+    # Use dynamic range based on current spot price for Greeks dashboard
+    S_range = np.linspace(spot * 0.8, spot * 1.2, grid_steps)
     sigma_range = np.linspace(vol_min, vol_max, grid_steps)
     # Line plots for a fixed sigma
     st.subheader("Line Plots (varying Spot, fixed Volatility)")
