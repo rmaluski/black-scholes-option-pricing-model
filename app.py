@@ -196,8 +196,8 @@ with tabs[0]:
     # Responsive heatmap layout based on screen size
     st.subheader("Option Price Heatmaps")
     
-    # Create heatmaps with larger size for better visibility
-    fig1, ax1 = plt.subplots(figsize=(8, 6))
+    # Create heatmaps with responsive sizing
+    fig1, ax1 = plt.subplots(figsize=(10, 7))
     c1 = ax1.imshow(call_price_grid, aspect='auto', origin='lower', cmap='viridis')
     ax1.set_xlabel('Spot Price (S)')
     ax1.set_ylabel('Volatility (sigma)')
@@ -214,7 +214,7 @@ with tabs[0]:
             ax1.text(j, i, f"{call_price_grid[i, j]:.2f}", ha="center", va="center", color="white", fontsize=10)
     fig1.tight_layout()
 
-    fig2, ax2 = plt.subplots(figsize=(8, 6))
+    fig2, ax2 = plt.subplots(figsize=(10, 7))
     c2 = ax2.imshow(put_price_grid, aspect='auto', origin='lower', cmap='viridis')
     ax2.set_xlabel('Spot Price (S)')
     ax2.set_ylabel('Volatility (sigma)')
@@ -229,43 +229,15 @@ with tabs[0]:
             ax2.text(j, i, f"{put_price_grid[i, j]:.2f}", ha="center", va="center", color="white", fontsize=10)
     fig2.tight_layout()
 
-    # Responsive layout: Use CSS to detect screen size and adjust layout
-    st.markdown("""
-    <style>
-    @media (min-width: 1200px) {
-        .heatmap-container {
-            display: flex;
-            gap: 20px;
-        }
-        .heatmap-item {
-            flex: 1;
-        }
-    }
-    @media (max-width: 1199px) {
-        .heatmap-container {
-            display: block;
-        }
-        .heatmap-item {
-            margin-bottom: 20px;
-        }
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    # Responsive layout: Use Streamlit's native responsive behavior
+    # The columns will automatically stack on smaller screens and show side-by-side on larger screens
+    col1, col2 = st.columns([1, 1], gap="large")
     
-    # Create responsive container
-    st.markdown('<div class="heatmap-container">', unsafe_allow_html=True)
+    with col1:
+        st.pyplot(fig1, use_container_width=True, clear_figure=True)
     
-    # First heatmap
-    st.markdown('<div class="heatmap-item">', unsafe_allow_html=True)
-    st.pyplot(fig1, use_container_width=True, clear_figure=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Second heatmap
-    st.markdown('<div class="heatmap-item">', unsafe_allow_html=True)
-    st.pyplot(fig2, use_container_width=True, clear_figure=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+    with col2:
+        st.pyplot(fig2, use_container_width=True, clear_figure=True)
 
     # Store input and output in DB (only if we have valid prices)
     if st.session_state.get('last_call_price') is not None:
