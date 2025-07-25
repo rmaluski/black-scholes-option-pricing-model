@@ -1,6 +1,15 @@
 import math
 from typing import Literal
+import os
 
+USE_NUMBA = os.environ.get("USE_NUMBA", "0") == "1"
+if USE_NUMBA:
+    from numba import njit
+else:
+    def njit(f):
+        return f
+
+@njit
 def black_scholes_price(
     S: float,  # Spot price
     K: float,  # Strike price
