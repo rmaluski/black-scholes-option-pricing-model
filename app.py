@@ -229,44 +229,15 @@ with tabs[0]:
             ax2.text(j, i, f"{put_price_grid[i, j]:.2f}", ha="center", va="center", color="white", fontsize=10)
     fig2.tight_layout()
 
-    # Responsive layout: Use custom CSS to control breakpoint
-    # Stack on screens smaller than 1400px, side-by-side on larger screens
-    st.markdown("""
-    <style>
-    @media (max-width: 1400px) {
-        .heatmap-responsive {
-            display: block !important;
-        }
-        .heatmap-responsive > div {
-            margin-bottom: 20px;
-        }
-    }
-    @media (min-width: 1401px) {
-        .heatmap-responsive {
-            display: flex !important;
-            gap: 20px;
-        }
-        .heatmap-responsive > div {
-            flex: 1;
-        }
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    # Responsive layout: Use Streamlit's native responsive behavior
+    # The columns will automatically stack on smaller screens and show side-by-side on larger screens
+    col1, col2 = st.columns([1, 1], gap="large")
     
-    # Create responsive container
-    st.markdown('<div class="heatmap-responsive">', unsafe_allow_html=True)
+    with col1:
+        st.pyplot(fig1, use_container_width=True, clear_figure=True)
     
-    # First heatmap
-    st.markdown('<div>', unsafe_allow_html=True)
-    st.pyplot(fig1, use_container_width=True, clear_figure=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Second heatmap
-    st.markdown('<div>', unsafe_allow_html=True)
-    st.pyplot(fig2, use_container_width=True, clear_figure=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+    with col2:
+        st.pyplot(fig2, use_container_width=True, clear_figure=True)
 
     # Store input and output in DB (only if we have valid prices)
     if st.session_state.get('last_call_price') is not None:
