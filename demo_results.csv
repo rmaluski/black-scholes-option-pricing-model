@@ -1,0 +1,7 @@
+symbol,contract_symbol,option_type,strike,current_price,black_scholes_price,variance_percentage,implied_volatility,time_to_expiry,volume,open_interest,expiration_date,current_stock_price
+TSLA,TSLA240119C00200000,call,200.0,8.5,6.2,37.1,0.32,0.1,2200,3500,2024-01-19,185.0
+AAPL,AAPL240119C00150000,call,150.0,5.2,3.8,36.8,0.25,0.1,1500,2500,2024-01-19,145.5
+NVDA,NVDA240119C00480000,call,480.0,12.5,9.2,35.9,0.4,0.1,1800,2800,2024-01-19,465.0
+TSLA,TSLA240119P00180000,put,180.0,4.2,3.1,35.5,0.35,0.1,1200,1800,2024-01-19,185.0
+AAPL,AAPL240119P00140000,put,140.0,2.8,2.1,33.3,0.28,0.1,800,1200,2024-01-19,145.5
+SPY,SPY240119C00450000,call,450.0,3.8,2.9,31.0,0.18,0.1,5000,8000,2024-01-19,445.0
